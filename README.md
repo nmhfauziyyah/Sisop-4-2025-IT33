@@ -21,7 +21,9 @@
 ### Oleh: Revalina Erica Permatasari (5027241007)
 #### a.Pujo harus membuat sistem AntiNK menggunakan Docker yang menjalankan FUSE dalam container terisolasi. Sistem ini menggunakan docker-compose untuk mengelola container antink-server (FUSE Func.) dan antink-logger (Monitoring Real-Time Log). Asisten juga memberitahu bahwa docker-compose juga memiliki beberapa komponen lain yaitu
 it24_host (Bind Mount -> Store Original File)
+
 antink_mount (Mount Point)
+
 antink-logs (Bind Mount -> Store Log)
 ##### Code
 
