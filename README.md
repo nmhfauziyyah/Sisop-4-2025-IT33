@@ -29,6 +29,7 @@ antink-logs (Bind Mount -> Store Log)
 
 #### b. Sistem harus mendeteksi file dengan kata kunci "nafis" atau "kimcun" dan membalikkan nama file tersebut saat ditampilkan. Saat file berbahaya (kimcun atau nafis) terdeteksi, sistem akan mencatat peringatan ke dalam log.
 Ex: "docker exec [container-name] ls /antink_mount" 
+
 Output: 
 test.txt  vsc.sifan  txt.nucmik
 ##### Code
@@ -37,6 +38,7 @@ test.txt  vsc.sifan  txt.nucmik
 
 #### c. Dikarenakan dua anomali tersebut terkenal dengan kelicikannya, Pujo mempunyai ide bahwa isi dari file teks normal akan di enkripsi menggunakan ROT13 saat dibaca, sedangkan file teks berbahaya tidak di enkripsi. 
 Ex: "docker exec [container-name] cat /antink_mount/test.txt" 
+
 Output: 
 enkripsi teks asli
 ##### Code
