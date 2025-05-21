@@ -204,8 +204,52 @@ Untuk mengatasi masalah-masalah tersebut, dilakukan beberapa perbaikan berikut:
 3. Pencegahan Duplikasi Log
 Konversi hanya dilakukan jika memang belum ada file hasil konversi sebelumnya, sehingga log hanya mencatat proses konversi yang benar-benar terjadi.
 
----
+### Dokumentasi
+Dokumentasi pengerjaan nomor 1 <br> <br>
 
+#### [1] Jika dijalankan ` ./hexed -f -o allow_other mnt`
+Perintah `./hexed -f -o allow_other mnt` akan download, unzip, dan menjalankan FUSE di Foreground dikarenakan saya menggunakan `-f`
+![desc](assets/1a.png) <br>
+
+### [2] Jika dijalankan `cat mnt/1.txt` / Membuka isi file 1.txt dan converted ke file image
+Membuka terminal baru dan melihat isi file 1.txt di dalam folder mnt yang dijalankan FUSE dan jika filenya dibuka akan terkonversi ke dalam file image. Berikut jika dijalankan `cat mnt/1.txt` , `ls mnt/image`, dan saya juga menampilkan isi dari file image yang sudah terkonversi di image viewes linux untuk melihat gambar yang berjalan di FUSE / mnt. <br>
+![desc](assets/1b.png) <br>
+
+### [3] Jika dijalankan `cat mnt/2.txt` / Membuka isi file 2.txt dan converted ke file image
+Membuka isi file, check isi dalam folder image `ls mnt/image`, dan menampilkan gambar <br>
+![desc](assets/1c.png) <br>
+
+### [4] Jika dijalankan `cat mnt/3.txt` / Membuka isi file 3.txt dan converted ke file image
+Membuka isi file, check isi dalam folder image `ls mnt/image`, dan menampilkan gambar <br>
+![desc](assets/1d.png) <br>
+
+### [5] Jika dijalankan `cat mnt/4.txt` / Membuka isi file 4.txt dan converted ke file image
+Membuka isi file, check isi dalam folder image `ls mnt/image`, dan menampilkan gambar <br>
+![desc](assets/1e.png) <br>
+
+### [6] Jika dijalankan `cat mnt/5.txt` / Membuka isi file 5.txt dan converted ke file image
+Membuka isi file, check isi dalam folder image `ls mnt/image`, dan menampilkan gambar <br>
+![desc](assets/1f.png) <br>
+
+### [7] Jika dijalankan `cat mnt/6.txt` / Membuka isi file 6.txt dan converted ke file image
+Membuka isi file, check isi dalam folder image `ls mnt/image`, dan menampilkan gambar <br>
+![desc](assets/1g.png) <br>
+
+### [8] Jika dijalankan `cat mnt/7.txt` / Membuka isi file 7.txt dan converted ke file image
+Membuka isi file, check isi dalam folder image `ls mnt/image`, dan menampilkan gambar <br>
+![desc](assets/1h.png) <br>
+
+### [9] Isi dari tree
+![desc](assets/1i.png) <br>
+
+### [9] Menghentikan FUSE dengan Ctrl+C
+Otomatis folder mnt akan kosong, karena FUSE sudah tidak berjalan lagi
+![desc](assets/1j.png) <br>
+
+### [10] Isi dari conversion.log
+![desc](assets/1k.png) <br>
+
+---
 ## Soal 2
 ### Oleh: Kaisar Hanif Pratama (5027241029)
 
