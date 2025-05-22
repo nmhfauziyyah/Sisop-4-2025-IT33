@@ -473,6 +473,8 @@ int main(int argc, char *argv[]) {
 ##### Output
 ![Screenshot 2025-05-21 144906](https://github.com/user-attachments/assets/6699b277-f5a6-4faa-bf56-6fda5e123c7c)
 
+<img width="621" alt="image" src="https://github.com/user-attachments/assets/f37df40a-78c1-47eb-a4e5-6a0149bf61c9" />
+
 #### b. Sistem harus mendeteksi file dengan kata kunci "nafis" atau "kimcun" dan membalikkan nama file tersebut saat ditampilkan. Saat file berbahaya (kimcun atau nafis) terdeteksi, sistem akan mencatat peringatan ke dalam log.
 Ex: "docker exec [container-name] ls /antink_mount" 
 
