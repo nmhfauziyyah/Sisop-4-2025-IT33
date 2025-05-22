@@ -264,6 +264,7 @@ antink-logs (Bind Mount -> Store Log)
 ##### Code
 
 ##### Output
+![Screenshot 2025-05-21 144906](https://github.com/user-attachments/assets/6699b277-f5a6-4faa-bf56-6fda5e123c7c)
 
 #### b. Sistem harus mendeteksi file dengan kata kunci "nafis" atau "kimcun" dan membalikkan nama file tersebut saat ditampilkan. Saat file berbahaya (kimcun atau nafis) terdeteksi, sistem akan mencatat peringatan ke dalam log.
 Ex: "docker exec [container-name] ls /antink_mount" 
@@ -273,6 +274,7 @@ test.txt  vsc.sifan  txt.nucmik
 ##### Code
 
 ##### Output
+![Screenshot 2025-05-21 144932](https://github.com/user-attachments/assets/252287fd-df29-4fba-b0ff-8ee2ac646329)
 
 #### c. Dikarenakan dua anomali tersebut terkenal dengan kelicikannya, Pujo mempunyai ide bahwa isi dari file teks normal akan di enkripsi menggunakan ROT13 saat dibaca, sedangkan file teks berbahaya tidak di enkripsi. 
 Ex: "docker exec [container-name] cat /antink_mount/test.txt" 
@@ -282,13 +284,21 @@ enkripsi teks asli
 ##### Code
 
 ##### Output
+![Screenshot 2025-05-21 144949](https://github.com/user-attachments/assets/9b29b425-c373-4d0e-b96d-c84f7540e9d5)
 
 #### d. Semua aktivitas dicatat dengan ke dalam log file /var/log/it24.log yang dimonitor secara real-time oleh container logger.
 ##### Code
 
 ##### Output
+![Screenshot 2025-05-21 144726](https://github.com/user-attachments/assets/36f4f131-8285-4fd8-bcca-0277765d1770)
 
 #### e. Semua perubahan file hanya terjadi di dalam container server jadi tidak akan berpengaruh di dalam direktori host. 
 ##### Code
 
 ##### Output
+<img width="627" alt="image" src="https://github.com/user-attachments/assets/b93def2f-b43e-466d-940d-7064b032f4cd" />
+
+## Soal 4
+### Oleh: Revalina Erica Permatasari (5027241007)
+
+Untuk nomor 4 sendiri, tidak solve karena saya sudah mencoba berkali kali dan fusenya tidak berjalan dengan benar. Sudah berulang kali reboot terminal juga dan mencoba lagi, tetapi tidak bisa. Dan karena adanya keterbatasan waktu juga, maka nomor 4 tidak saya solve.
