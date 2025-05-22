@@ -1,4 +1,5 @@
 version: '3.8'
+
 services:
   antink-server:
     build: .
@@ -9,15 +10,22 @@ services:
     devices:
       - /dev/fuse
     volumes:
-      - ./it24_host:/it24_host
-      - ./antink_mount:/antink_mount
-      - ./antink_logs:/var/log
-  
+      - ./it24_host:/it24_host:ro   
+      - ./antink_mount:/antink_mount 
+      - ./antink_logs:/var/log     
+    security_opt:
+      - apparmor:unconfined
+
   antink-logger:
     image: busybox
     container_name: antink-logger
     depends_on:
       - antink-server
     volumes:
-      - ./antink_logs:/var/log
+      - ./antink_logs:/var/log:ro    
     command: sh -c "while [ ! -f /var/log/it24.log ]; do sleep 1; done; tail -f /var/log/it24.log"
+
+volumes:
+  it24_host:   
+  antink_mount:  
+  antink_logs: 
