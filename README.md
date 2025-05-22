@@ -255,6 +255,117 @@ Otomatis folder mnt akan kosong, karena FUSE sudah tidak berjalan lagi
 
 ## Soal 3
 ### Oleh: Revalina Erica Permatasari (5027241007)
+
+#### `docker-compose.yml` (Eksternal)
+##### Code Sebelum Revisi
+version: '3.8'
+services:
+  antink-server:
+    build: .
+    container_name: antink-server
+    privileged: true
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/fuse
+    volumes:
+      - ./it24_host:/it24_host
+      - ./antink_mount:/antink_mount
+      - ./antink_logs:/var/log
+  
+  antink-logger:
+    image: busybox
+    container_name: antink-logger
+    depends_on:
+      - antink-server
+    volumes:
+      - ./antink_logs:/var/log
+    command: sh -c "while [ ! -f /var/log/it24.log ]; do sleep 1; done; tail -f /var/log/it24.log"
+
+##### Code Sesudah Revisi
+```
+version: '3.8'
+
+services:
+  antink-server:
+    build: .
+    container_name: antink-server
+    privileged: true
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/fuse
+    volumes:
+      - ./it24_host:/it24_host:ro   
+      - ./antink_mount:/antink_mount 
+      - ./antink_logs:/var/log     
+    security_opt:
+      - apparmor:unconfined
+
+  antink-logger:
+    image: busybox
+    container_name: antink-logger
+    depends_on:
+      - antink-server
+    volumes:
+      - ./antink_logs:/var/log:ro    
+    command: sh -c "while [ ! -f /var/log/it24.log ]; do sleep 1; done; tail -f /var/log/it24.log"
+
+volumes:
+  it24_host:   
+  antink_mount:  
+  antink_logs: 
+```
+#### Service: `antink-server`
+Container utama yang menjalankan sistem FUSE AntiNK.
+
+| Baris | Penjelasan |
+|-------|------------|
+| `build: .` | Membangun image Docker dari `Dockerfile` di direktori saat ini. |
+| `container_name: antink-server` | Nama container akan menjadi `antink-server`. |
+| `privileged: true` | Memberikan hak akses penuh pada container, **diperlukan untuk menjalankan FUSE**. |
+| `cap_add:`<br>`- SYS_ADMIN` | Menambahkan kemampuan khusus agar container bisa melakukan operasi `mount` (diperlukan untuk FUSE). |
+| `devices:`<br>`- /dev/fuse` | Memberikan akses langsung ke device FUSE pada host. |
+| `volumes:`<br>`- ./it24_host:/it24_host:ro` | Mount direktori `it24_host` dari host sebagai sumber file asli. Bersifat **read-only**. |
+|  | `- ./antink_mount:/antink_mount` → Mount point FUSE, tempat hasil virtual dari sistem AntiNK ditampilkan. |
+|  | `- ./antink_logs:/var/log` → Tempat log sistem disimpan, termasuk `it24.log`. |
+| `security_opt:`<br>`- apparmor:unconfined` | Menonaktifkan profil keamanan AppArmor agar tidak menghalangi operasi FUSE. |
+
+---
+
+#### Service: `antink-logger`
+Container ringan untuk memantau log sistem secara real-time.
+
+| Baris | Penjelasan |
+|-------|------------|
+| `image: busybox` | Menggunakan image ringan BusyBox (cukup untuk perintah `sh`, `tail`, dll.). |
+| `container_name: antink-logger` | Menamai container sebagai `antink-logger`. |
+| `depends_on:`<br>`- antink-server` | Menentukan bahwa container ini hanya berjalan setelah `antink-server` siap. |
+| `volumes:`<br>`- ./antink_logs:/var/log:ro` | Share log folder yang sama, tetapi hanya dalam mode **read-only**. |
+| `command:`<br>`sh -c "...tail -f /var/log/it24.log"` | Menunggu hingga log `it24.log` muncul, lalu menampilkan isi log secara real-time menggunakan `tail -f`. |
+
+---
+
+#### Penjelasan Folder (Mount Points)
+
+| Folder (Host) | Fungsi |
+|---------------|--------|
+| `./it24_host/` | Tempat file asli disimpan (input), akan dibaca oleh sistem AntiNK (read-only). |
+| `./antink_mount/` | Folder hasil FUSE mount, di sini file yang sudah dimanipulasi nama/isinya tampil. |
+| `./antink_logs/` | Folder log, menyimpan log aktivitas dari sistem AntiNK (`it24.log`). |
+---
+
+### Kaitan dengan Soal 3
+
+| Poin Soal | Keterangan |
+|-----------|------------|
+| **a.** Docker + FUSE + logger | `antink-server` dan `antink-logger` disiapkan sesuai kebutuhan soal |
+| **b.** Deteksi nafis/kimcun → reverse + log | Nama file dibalik & dicatat saat `ls` dari mount |
+| **c.** ROT13 untuk `.txt` normal | ROT13 hanya berlaku untuk file `.txt` yang bukan berbahaya |
+| **d.** Semua aktivitas dicatat di log | File `/var/log/it24.log` mencatat semua aksi: read, write, deteksi |
+| **e.** Perubahan hanya di container (mount layer) | File di `it24_host` tidak dimodifikasi; hanya layer FUSE yang dimanipulasi |
+---
+
 #### a.Pujo harus membuat sistem AntiNK menggunakan Docker yang menjalankan FUSE dalam container terisolasi. Sistem ini menggunakan docker-compose untuk mengelola container antink-server (FUSE Func.) dan antink-logger (Monitoring Real-Time Log). Asisten juga memberitahu bahwa docker-compose juga memiliki beberapa komponen lain yaitu
 it24_host (Bind Mount -> Store Original File)
 
