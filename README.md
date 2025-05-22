@@ -481,6 +481,28 @@ test.txt  vsc.sifan  txt.nucmik
 ##### Code Sebelum Revisi
 
 ##### Code Sesudah Revisi
+```
+int is_dangerous(const char *name) {
+    if (!name) return 0;
+    return (strstr(name, "nafis") != NULL) || (strstr(name, "kimcun") != NULL);
+}
+
+char *reverse_string(const char *str) {
+    if (!str) return NULL;
+    int len = strlen(str);
+    char *rev = malloc(len + 1);
+    if (!rev) return NULL;
+    
+    for (int i = 0; i < len; i++) {
+        rev[i] = str[len - 1 - i];
+    }
+    rev[len] = '\0';
+    return rev;
+}
+
+
+
+```
 
 ##### Output
 ![Screenshot 2025-05-21 144932](https://github.com/user-attachments/assets/252287fd-df29-4fba-b0ff-8ee2ac646329)
@@ -651,6 +673,56 @@ static int antink_write(const char *path, const char *buf, size_t size, off_t of
     log_message(log_msg);
     
     return res;
+}
+```
+
+```
+static int antink_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
+                         off_t offset, struct fuse_file_info *fi,
+                         enum fuse_readdir_flags flags) {
+    DIR *dp;
+    struct dirent *de;
+    char fpath[1024];
+    
+    (void) offset;
+    (void) fi;
+    (void) flags;
+    
+    snprintf(fpath, sizeof(fpath), "%s%s", source_path, path);
+    
+    dp = opendir(fpath);
+    if (dp == NULL)
+        return -errno;
+    
+    filler(buf, ".", NULL, 0, 0);
+    filler(buf, "..", NULL, 0, 0);
+
+    while ((de = readdir(dp)) != NULL) {
+        if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0)
+            continue;
+            
+        struct stat st;
+        memset(&st, 0, sizeof(st));
+        st.st_ino = de->d_ino;
+        st.st_mode = de->d_type << 12;
+        
+        if (is_dangerous(de->d_name)) {
+            char log_msg[512];
+            snprintf(log_msg, sizeof(log_msg), "Dangerous file detected: %s", de->d_name);
+            log_message(log_msg);
+            
+            char *reversed = reverse_string(de->d_name);
+            if (reversed) {
+                filler(buf, reversed, &st, 0, 0);
+                free(reversed);
+            }
+        } else {
+            filler(buf, de->d_name, &st, 0, 0);
+        }
+    }
+    
+    closedir(dp);
+    return 0;
 }
 ```
 
