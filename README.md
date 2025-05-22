@@ -8,7 +8,7 @@
 ## Daftar Isi
 1. [Soal 1](#soal-1)
 2. [Soal 2](#soal-2)
-3. [Soal3](#soal-3)
+3. [Soal 3](#soal-3)
 4. [Soal 4](#soal-4)
 
 ## Soal 1
@@ -448,7 +448,17 @@ antink_mount (Mount Point)
 
 antink-logs (Bind Mount -> Store Log)
 ##### Code Sebelum Revisi
-
+```
+#define FUSE_USE_VERSION 30
+#include <fuse3/fuse.h>
+...
+#define LOG_FILE "/var/log/it24.log"
+static const char *source_path = "/it24_host";
+...
+int main(int argc, char *argv[]) {
+    return fuse_main(argc, argv, &antink_oper, NULL);
+}
+```
 ##### Code Sesudah Revisi
 ```
 #define FUSE_USE_VERSION 30
@@ -466,6 +476,17 @@ int main(int argc, char *argv[]) {
     return fuse_main(argc, argv, &antink_oper, NULL);
 }
 ```
+- `#define FUSE_USE_VERSION 30` : Menentukan bahwa program menggunakan API FUSE versi 3.0.
+- `#include <fuse3/fuse.h>` : Menyertakan header utama dari FUSE.
+- `LOG_FILE` Merupakan path untuk file log, yaitu `/var/log/it24.log`. Semua status sistem akan dicatat di sini.
+- `source_path` Merupakan direktori sumber asli (`/it24_host`) yang akan direpresentasikan di sistem file virtual.
+- `fopen(LOG_FILE, "w")` : Membuka file log untuk ditulis. Jika file sudah ada, maka isinya akan ditimpa.
+- `printf(log, ...)` : Menuliskan pesan "=== AntiNK System Started ===" ke dalam file log sebagai tanda bahwa sistem telah dijalankan.
+- `fclose(log)`: Menutup file log setelah selesai digunakan.
+- `fuse_main(...)`: Fungsi utama dari FUSE yang menjalankan filesystem virtual
+   - `argc, argv` Merupakan argumen command-line dari program.
+   - `&antink_oper` : Struktur berisi implementasi operasi filesystem seperti getattr, readdir, read, open, dll.
+   - `NULL`: Tidak ada data tambahan yang diberikan ke FUSE context.
 
 ##### Output
 ![Screenshot 2025-05-21 144906](https://github.com/user-attachments/assets/6699b277-f5a6-4faa-bf56-6fda5e123c7c)
@@ -478,6 +499,22 @@ Ex: "docker exec [container-name] ls /antink_mount"
 Output: 
 test.txt  vsc.sifan  txt.nucmik
 ##### Code Sebelum Revisi
+```
+int is_dangerous(const char *name) {
+    return strstr(name, "nafis") || strstr(name, "kimcun");
+}
+
+char *reverse_name(const char *name) {
+    int len = strlen(name);
+    char *rev = malloc(len + 1);
+    if (!rev) return NULL;
+    for (int i = 0; i < len; i++) {
+        rev[i] = name[len - 1 - i];
+    }
+    rev[len] = '\0';
+    return rev;
+}
+```
 
 ##### Code Sesudah Revisi
 ```
@@ -485,7 +522,14 @@ int is_dangerous(const char *name) {
     if (!name) return 0;
     return (strstr(name, "nafis") != NULL) || (strstr(name, "kimcun") != NULL);
 }
+```
+- Fungsi `is_dangerous` menerima sebuah string `name`.
+- Jika name bernilai `NULL`, fungsi langsung mengembalikan `0` (artinya tidak berbahaya).
+- Fungsi menggunakan strstr untuk memeriksa apakah substring "nafis" atau "kimcun" terdapat dalam name.
+- Jika salah satu substring ditemukan, fungsi mengembalikan `1` (berbahaya).
+- Jika tidak ditemukan, fungsi mengembalikan `0` (tidak berbahaya).
 
+```
 char *reverse_string(const char *str) {
     if (!str) return NULL;
     int len = strlen(str);
@@ -498,8 +542,15 @@ char *reverse_string(const char *str) {
     rev[len] = '\0';
     return rev;
 }
-
 ```
+- Fungsi ini menerima string `str` sebagai input.
+- Jika `str` bernilai `NULL`, fungsi mengembalikan NULL.
+- Fungsi menghitung panjang string dengan `strlen`.
+- Mengalokasikan memori baru sebanyak panjang string + 1 untuk karakter null terminator (\0).
+- Melakukan loop untuk menyalin karakter dari belakang ke depan, sehingga menghasilkan string terbalik.
+- Menambahkan karakter null ('\0') di akhir string baru.
+- Mengembalikan pointer ke string baru yang sudah dibalik.
+- Caller bertanggung jawab untuk membebaskan (`free`) memori yang dialokasikan oleh fungsi ini setelah selesai digunakan.
 
 ##### Output
 ![Screenshot 2025-05-21 144932](https://github.com/user-attachments/assets/252287fd-df29-4fba-b0ff-8ee2ac646329)
@@ -510,27 +561,53 @@ Ex: "docker exec [container-name] cat /antink_mount/test.txt"
 Output: 
 enkripsi teks asli
 ##### Code Sebelum Revisi
+```
+char *rot13(const char *text) {
+    char *result = strdup(text);
+    if (!result) return NULL;
+    for (int i = 0; result[i]; i++) {
+        if ((result[i] >= 'a' && result[i] <= 'm') || (result[i] >= 'A' && result[i] <= 'M')) {
+            result[i] += 13;
+        } else if ((result[i] >= 'n' && result[i] <= 'z') || (result[i] >= 'N' && result[i] <= 'Z')) {
+            result[i] -= 13;
+        }
+    }
+    return result;
+}
 
+static int antink_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
+                          off_t offset, struct fuse_file_info *fi,
+                          enum fuse_readdir_flags flags) {
+    char fpath[1024];
+    snprintf(fpath, sizeof(fpath), "%s%s", source_path, path);
+
+    DIR *dp = opendir(fpath);
+    if (!dp) return -errno;
+
+    struct dirent *de;
+    while ((de = readdir(dp)) != NULL) {
+        struct stat st = {0};
+        st.st_ino = de->d_ino;
+        st.st_mode = de->d_type << 12;
+
+        char *display_name = is_dangerous(de->d_name) ? reverse_name(de->d_name) : strdup(de->d_name);
+        if (!display_name) continue;
+
+        if (is_dangerous(de->d_name)) {
+            char log_msg[512];
+            snprintf(log_msg, sizeof(log_msg), "Dangerous file detected: %s", de->d_name);
+            log_message(log_msg);
+        }
+
+        filler(buf, display_name, &st, 0, 0);
+        free(display_name);
+    }
+    closedir(dp);
+    return 0;
+}
+```
 ##### Code Sesudah Revisi
 ```
-int is_dangerous(const char *name) {
-    if (!name) return 0;
-    return (strstr(name, "nafis") != NULL) || (strstr(name, "kimcun") != NULL);
-}
-
-char *reverse_string(const char *str) {
-    if (!str) return NULL;
-    int len = strlen(str);
-    char *rev = malloc(len + 1);
-    if (!rev) return NULL;
-    
-    for (int i = 0; i < len; i++) {
-        rev[i] = str[len - 1 - i];
-    }
-    rev[len] = '\0';
-    return rev;
-}
-
 char *rot13(const char *text) {
     if (!text) return NULL;
     char *result = strdup(text);
@@ -545,7 +622,16 @@ char *rot13(const char *text) {
     }
     return result;
 }
+```
+- Fungsi ini mengimplementasikan algoritma ROT13, yaitu metode substitusi sederhana untuk mengenkripsi teks dengan mengganti setiap huruf alfabet dengan huruf yang berada 13 posisi setelahnya dalam alfabet.
+- Fungsi membuat duplikat string input text dengan `strdup` agar string asli tidak diubah.
+- Fungsi kemudian mengiterasi setiap karakter dalam string hasil duplikat.
+- Jika karakter adalah huruf kecil antara 'a' dan 'm' atau huruf besar antara 'A' dan 'M', maka karakter tersebut digeser maju 13 posisi (+13).
+- Jika karakter adalah huruf kecil antara 'n' dan 'z' atau huruf besar antara 'N' dan 'Z', maka karakter tersebut digeser mundur 13 posisi (-13).
+- Karakter lain (non-alfabet) tidak diubah.
+- Fungsi mengembalikan string baru yang sudah dienkripsi/dekripsi dengan ROT13.
 
+```
 static int antink_read(const char *path, char *buf, size_t size, off_t offset,
                       struct fuse_file_info *fi) {
     int res;
@@ -569,13 +655,106 @@ static int antink_read(const char *path, char *buf, size_t size, off_t offset,
     return res;
 }
 ```
+- Fungsi `antink_read` adalah callback FUSE yang bertugas membaca isi file.
+- Setelah berhasil membaca (`res > 0`), fungsi melakukan beberapa pengecekan dan manipulasi:
+- Membalik nama file dengan `reverse_string`.
+- Mengecek apakah file tersebut dianggap **berbahaya** menggunakan fungsi `is_dangerous` pada nama yang sudah dibalik.
+- Jika file **tidak berbahaya** dan memiliki ekstensi `.txt`, maka isi file yang sudah dibaca di-**ROT13**-kan (dienkripsi atau didekripsi) menggunakan fungsi `rot13`.
+- Hasil ROT13 menggantikan isi buffer `buf` yang akan dibaca oleh user.
+- Jika file berbahaya atau bukan file `.txt`, isi file dibaca normal tanpa enkripsi.
+- Fungsi mengembalikan jumlah byte yang berhasil dibaca (`res`).
 
 ##### Output
 ![Screenshot 2025-05-21 144949](https://github.com/user-attachments/assets/9b29b425-c373-4d0e-b96d-c84f7540e9d5)
 
 #### d. Semua aktivitas dicatat dengan ke dalam log file /var/log/it24.log yang dimonitor secara real-time oleh container logger.
 ##### Code Sebelum Revisi
+```
+#define FUSE_USE_VERSION 30
+#include <fuse3/fuse.h>
+...
+#define LOG_FILE "/var/log/it24.log"
+static const char *source_path = "/it24_host";
+...
+void log_message(const char *msg) {
+    pthread_mutex_lock(&log_mutex);
+    FILE *log = fopen(LOG_FILE, "a");
+    if (log) {
+        time_t now = time(NULL);
+        char *time_str = ctime(&now);
+        if (time_str) {
+            time_str[strlen(time_str) - 1] = '\0';  // Hapus newline
+            fprintf(log, "[%s] %s\n", time_str, msg);
+        }
+        fclose(log);
+    }
+    pthread_mutex_unlock(&log_mutex);
+}
 
+static int antink_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
+                          off_t offset, struct fuse_file_info *fi,
+                          enum fuse_readdir_flags flags) {
+    char fpath[1024];
+    snprintf(fpath, sizeof(fpath), "%s%s", source_path, path);
+
+    DIR *dp = opendir(fpath);
+    if (!dp) return -errno;
+
+    struct dirent *de;
+    while ((de = readdir(dp)) != NULL) {
+        struct stat st = {0};
+        st.st_ino = de->d_ino;
+        st.st_mode = de->d_type << 12;
+
+        char *display_name = is_dangerous(de->d_name) ? reverse_name(de->d_name) : strdup(de->d_name);
+        if (!display_name) continue;
+
+        if (is_dangerous(de->d_name)) {
+            char log_msg[512];
+            snprintf(log_msg, sizeof(log_msg), "Dangerous file detected: %s", de->d_name);
+            log_message(log_msg);
+        }
+
+        filler(buf, display_name, &st, 0, 0);
+        free(display_name);
+    }
+    closedir(dp);
+    return 0;
+}
+
+static int antink_open(const char *path, struct fuse_file_info *fi) {
+    char *fpath = to_real_path(path);
+    if (!fpath) return -ENOMEM;
+    int fd = open(fpath, fi->flags);
+    if (fd == -1) return -errno;
+    fi->fh = fd;
+    return 0;
+}
+
+static int antink_read(const char *path, char *buf, size_t size, off_t offset,
+                       struct fuse_file_info *fi) {
+    int fd = fi->fh;
+    int res = pread(fd, buf, size, offset);
+    if (res == -1) return -errno;
+
+    const char *filename = strrchr(path, '/');
+    filename = filename ? filename + 1 : path;
+
+    if (!is_dangerous(filename) && strstr(filename, ".txt")) {
+        char *encrypted = rot13(buf);
+        if (encrypted) {
+            strncpy(buf, encrypted, res);
+            free(encrypted);
+        }
+    }
+
+    char log_msg[512]; 
+    snprintf(log_msg, sizeof(log_msg), "Read file: %s", path);
+    log_message(log_msg);
+
+    return res;
+}
+```
 ##### Code Sesudah Revisi
 ```
 #define FUSE_USE_VERSION 30
@@ -599,6 +778,18 @@ void log_message(const char *msg) {
     pthread_mutex_unlock(&log_mutex);
 }
 ```
+- `#define FUSE_USE_VERSION 30`: Menentukan versi API FUSE yang digunakan (versi 3.0).
+- `LOG_FILE`: Path file log yaitu `/var/log/it24.log`.
+- `source_path`: Direktori sumber asli yang akan direpresentasikan dalam filesystem virtual, yaitu `/it24_host`.
+
+- Fungsi `log_message` digunakan untuk menulis pesan log ke file log secara **thread-safe** dengan menggunakan `pthread_mutex`.
+- `pthread_mutex_lock(&log_mutex);` mengunci mutex untuk mencegah race condition saat beberapa thread menulis log bersamaan.
+- Membuka file log dengan mode append (`"a"`) agar data log baru ditambahkan di akhir file.
+- Mengambil waktu saat ini (`time(NULL)`) dan mengubahnya menjadi string waktu yang mudah dibaca dengan `ctime`.
+- Menghapus karakter newline (`'\n'`) terakhir dari string waktu agar format log rapi.
+- Menulis pesan log dengan format `[timestamp] pesan`.
+- Menutup file log setelah penulisan selesai.
+- Membuka mutex dengan `pthread_mutex_unlock(&log_mutex);` agar thread lain bisa menulis log.
 
 ```
 static int antink_read(const char *path, char *buf, size_t size, off_t offset,
@@ -644,6 +835,41 @@ static int antink_read(const char *path, char *buf, size_t size, off_t offset,
     return res;
 }
 ```
+Fungsi `antink_read` adalah callback FUSE yang bertugas membaca isi file dari filesystem virtual.
+
+1. **Mendapatkan path asli file**  
+   Memanggil `to_real_path(path)` untuk mendapatkan path file asli di sistem host.  
+   Jika gagal, fungsi mengembalikan error `-ENOMEM`.
+
+2. **Membuka file untuk dibaca**  
+   Membuka file dengan `open` mode read-only (`O_RDONLY`).  
+   Jika gagal membuka, fungsi mengembalikan error berdasarkan `errno`.
+
+3. **Membaca isi file**  
+   Menggunakan `pread` untuk membaca `size` byte dari file mulai offset tertentu ke buffer `buf`.  
+   Jika gagal, mengembalikan error berdasarkan `errno`.
+
+4. **Menutup file**  
+   Setelah membaca, file ditutup.
+
+5. **Mengambil nama file saja**  
+   Memperoleh nama file dari path dengan mencari karakter '/' terakhir, lalu mengambil substring setelahnya.
+
+6. **Mencatat aktivitas baca ke log**  
+   Membuat pesan log dengan nama file yang dibaca, kemudian memanggil fungsi `log_message`.
+
+7. **Memproses isi file jika berhasil baca**  
+   Jika jumlah byte yang berhasil dibaca (`res`) lebih dari 0:  
+   - Membalik nama file dengan `reverse_string`.  
+   - Mengecek apakah nama file yang sudah dibalik dianggap berbahaya dengan fungsi `is_dangerous`.  
+   - Jika file **tidak berbahaya** dan ber-ekstensi `.txt`, maka isi buffer `buf` dienkripsi/dekripsi dengan algoritma ROT13 menggunakan fungsi `rot13`.  
+   - Mengganti isi `buf` dengan hasil ROT13.
+
+8. **Mengembalikan hasil**  
+   Mengembalikan jumlah byte yang berhasil dibaca, atau kode error jika terjadi kegagalan.
+
+Fungsi ini membaca file dari direktori sumber, mencatat aktivitas baca di log, serta secara transparan mengenkripsi/dekripsi file teks `.txt` yang tidak berbahaya menggunakan ROT13 sebelum data diberikan ke pengguna.
+
 
 ```
 static int antink_write(const char *path, const char *buf, size_t size, off_t offset,
@@ -672,6 +898,30 @@ static int antink_write(const char *path, const char *buf, size_t size, off_t of
     return res;
 }
 ```
+Fungsi `antink_write` adalah callback FUSE yang bertugas menulis data ke file dalam filesystem virtual.
+
+1. **Mendapatkan path asli file**  
+   Memanggil `to_real_path(path)` untuk mendapatkan path file asli di sistem host.  
+   Jika gagal, fungsi mengembalikan error `-ENOMEM`.
+
+2. **Membuka file untuk ditulis**  
+   Membuka file dengan mode write-only (`O_WRONLY`).  
+   Jika gagal membuka, fungsi mengembalikan error berdasarkan `errno`.
+
+3. **Menulis data ke file**  
+   Menggunakan `pwrite` untuk menulis `size` byte dari buffer `buf` ke file mulai dari offset tertentu.  
+   Jika gagal, mengembalikan error berdasarkan `errno`.
+
+4. **Menutup file**  
+   Setelah menulis, file ditutup.
+
+5. **Mencatat aktivitas tulis ke log**  
+   Membuat pesan log dengan nama file yang ditulis, kemudian memanggil fungsi `log_message`.
+
+6. **Mengembalikan hasil**  
+   Mengembalikan jumlah byte yang berhasil ditulis, atau kode error jika terjadi kegagalan.
+
+Fungsi ini menulis data ke file pada direktori sumber asli dan mencatat aktivitas tulis tersebut ke dalam file log.
 
 ```
 static int antink_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
@@ -722,63 +972,68 @@ static int antink_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     return 0;
 }
 ```
+Fungsi `antink_readdir` adalah callback FUSE yang bertugas membaca isi direktori dan mengembalikan daftar file/direktori di dalamnya.
 
-```
-static int antink_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
-                         off_t offset, struct fuse_file_info *fi,
-                         enum fuse_readdir_flags flags) {
-    DIR *dp;
-    struct dirent *de;
-    char fpath[1024];
-    
-    (void) offset;
-    (void) fi;
-    (void) flags;
-    
-    snprintf(fpath, sizeof(fpath), "%s%s", source_path, path);
-    
-    dp = opendir(fpath);
-    if (dp == NULL)
-        return -errno;
-    
-    filler(buf, ".", NULL, 0, 0);
-    filler(buf, "..", NULL, 0, 0);
+1. **Membentuk path asli direktori**  
+   Menggabungkan `source_path` (direktori sumber asli) dengan `path` yang diminta untuk membentuk path lengkap (`fpath`).
 
-    while ((de = readdir(dp)) != NULL) {
-        if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0)
-            continue;
-            
-        struct stat st;
-        memset(&st, 0, sizeof(st));
-        st.st_ino = de->d_ino;
-        st.st_mode = de->d_type << 12;
-        
-        if (is_dangerous(de->d_name)) {
-            char log_msg[512];
-            snprintf(log_msg, sizeof(log_msg), "Dangerous file detected: %s", de->d_name);
-            log_message(log_msg);
-            
-            char *reversed = reverse_string(de->d_name);
-            if (reversed) {
-                filler(buf, reversed, &st, 0, 0);
-                free(reversed);
-            }
-        } else {
-            filler(buf, de->d_name, &st, 0, 0);
-        }
-    }
-    
-    closedir(dp);
-    return 0;
-}
-```
+2. **Membuka direktori**  
+   Membuka direktori menggunakan `opendir(fpath)`.  
+   Jika gagal membuka, mengembalikan error berdasarkan `errno`.
+
+3. **Menambahkan entry "." dan ".."**  
+   Mengisi buffer `buf` dengan entri direktori saat ini `"."` dan induk direktori `".."`.
+
+4. **Membaca isi direktori**  
+   Melakukan iterasi menggunakan `readdir` untuk setiap entry di direktori.
+
+5. **Melewati entri "." dan ".."**  
+   Jika nama entry adalah `"."` atau `".."`, diabaikan.
+
+6. **Mempersiapkan metadata file**  
+   Membuat struct `stat` yang diisi dengan inode dan tipe file (mode) dari entry.
+
+7. **Deteksi file berbahaya**  
+   Jika nama file dianggap berbahaya (`is_dangerous(de->d_name)`):  
+   - Mencatat deteksi file berbahaya ke log dengan `log_message`.  
+   - Membalik nama file menggunakan `reverse_string`.  
+   - Menambahkan nama file yang sudah dibalik ke buffer hasil `filler`.
+
+8. **File tidak berbahaya**  
+   Jika file tidak berbahaya, langsung menambahkan nama asli file ke buffer `filler`.
+
+9. **Menutup direktori**  
+   Setelah selesai membaca semua entry, direktori ditutup dengan `closedir`.
+
+10. **Mengembalikan nilai**  
+    Fungsi mengembalikan `0` sebagai tanda sukses.
+
+Fungsi ini mengembalikan daftar file dalam direktori sumber asli, mengganti nama file berbahaya dengan versi terbaliknya dan mencatatnya ke log, sementara file lainnya dikembalikan dengan nama asli.
 
 ##### Output
 ![Screenshot 2025-05-21 144726](https://github.com/user-attachments/assets/36f4f131-8285-4fd8-bcca-0277765d1770)
 
 #### e. Semua perubahan file hanya terjadi di dalam container server jadi tidak akan berpengaruh di dalam direktori host. 
 ##### Code Sebelum Revisi
+```
+static const char *source_path = "/it24_host";
+...
+static char *to_real_path(const char *path) {
+    static char fpath[1024];
+    const char *filename = strrchr(path, '/');
+    filename = filename ? filename + 1 : path;
 
+    if (is_dangerous(filename)) {
+        char *rev = reverse_name(filename);
+        if (!rev) return NULL;
+        snprintf(fpath, sizeof(fpath), "%s/%s", source_path, rev);
+        free(rev);
+    } else {
+        snprintf(fpath, sizeof(fpath), "%s%s", source_path, path);
+    }
+    return fpath;
+}
+```
 ##### Code Sesudah Revisi
 ```
 static const char *source_path = "/it24_host";
@@ -815,9 +1070,53 @@ static char *to_real_path(const char *path) {
     return real_path;
 }
 ```
+Fungsi `to_real_path` bertugas mengonversi path virtual yang diterima oleh filesystem FUSE menjadi path asli pada sistem host.
+
+1. **Menangani path root (`"/"`)**  
+   Jika `path` adalah root (`"/"`), maka fungsi mengembalikan path direktori sumber asli (`source_path`) dengan tambahan slash di akhir, misalnya:  
+   `/it24_host/`
+
+2. **Mengambil nama file dari path**  
+   Menggunakan `strrchr` untuk mencari karakter `'/'` terakhir dalam `path` agar bisa mendapatkan nama file saja (`filename`).  
+   Jika tidak ditemukan `'/'`, maka `filename` adalah `path` itu sendiri.
+
+3. **Mengambil path direktori (tanpa nama file)**  
+   Jika `filename` bukan sama dengan `path` (berarti ada direktori), maka `dir_path` diisi dengan bagian path sebelum nama file.
+
+4. **Memeriksa apakah file berbahaya dengan nama yang dibalik**  
+   Fungsi `reverse_string` digunakan untuk membalik nama file, kemudian dicek dengan `is_dangerous`.  
+   - Jika nama file yang dibalik termasuk berbahaya, maka `real_path` dibentuk dengan `source_path` + `dir_path` + nama file yang sudah dibalik.  
+   - Jika tidak berbahaya, `real_path` dibentuk dari `source_path` + `path` asli.
+
+5. **Mengembalikan path asli lengkap**  
+   Fungsi mengembalikan string `real_path` yang menunjukkan lokasi file sebenarnya pada sistem host.
+
+Fungsi ini memetakan path virtual yang diterima FUSE ke path fisik asli pada host. Jika file dianggap "berbahaya" setelah membalik namanya, path yang dikembalikan menggunakan nama file yang dibalik, sehingga dapat memanipulasi akses file secara khusus.
 
 ##### Output
 <img width="545" alt="image" src="https://github.com/user-attachments/assets/4198d686-c8a7-487f-a98a-1140937483fa" />
+
+#### Kendala
+Antink server sempat tidak aktif sehingga tidak dapat membuat file txt, pdf, csv, dan sebagainya.
+
+#### Perbandingan Sebelum dan Sesudah Revisi
+| Bagian / Fitur            | Sebelum Revisi                                                                                       | Sesudah Revisi                                                                                                  |
+|--------------------------|----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
+| **Header dan Includes**   | `#define FUSE_USE_VERSION 30` <br> `#include <fuse3/fuse.h>` plus libraries standar                 | Tetap sama                                                                                                    |
+| **Logging**               | Mutex untuk lock, buka file log mode append <br> Format waktu pakai `ctime()` <br> Buffer log 256   | Tambah inisialisasi log di main dengan header "=== AntiNK System Started ===" <br> Buffer log 512              |
+| **Fungsi `is_dangerous`**| Cek dengan `strstr(name, "nafis") || strstr(name, "kimcun")` tanpa null check                       | Ditambah pengecekan NULL <br> `strstr(name, "nafis") != NULL || strstr(name, "kimcun") != NULL`                |
+| **Fungsi pembalik string**| `reverse_name` membalik string tanpa pengecekan null                                              | Ganti nama jadi `reverse_string` <br> Tambah pengecekan null                                                   |
+| **Fungsi `to_real_path`** | Ambil nama file terakhir dari path <br> Jika dangerous, balik nama <br> Else ambil path asli       | Perbaikan handle root "/" <br> Ekstrak dirname dan basename <br> Cek file dangerous lewat reverse string      |
+| **Fungsi `rot13`**        | Implementasi ROT13 standar                                                                          | Sama                                                                                                          |
+| **Fungsi `antink_getattr`**| Panggil `to_real_path`, lalu `lstat` untuk atribut file                                            | Ditambah pengecekan error dengan `if (res == -1)` <br> Kode jadi lebih jelas                                   |
+| **Fungsi `antink_readdir`**| Baca directory <br> Jika file dangerous, balik nama dan log <br> Langsung `filler` isi direktori   | Tambah `filler(buf, ".", NULL, 0, 0)` dan `filler(buf, "..", NULL, 0, 0)` <br> Skip `"."` dan `".."` saat baca <br> Log dan reverse lebih rapi |
+| **Fungsi `antink_open`**  | Buka file dengan `to_real_path`, simpan file descriptor di `fi->fh`                               | Tetap sama                                                                                                    |
+| **Fungsi `antink_read`**  | Baca file dari `fi->fh` <br> Jika bukan dangerous dan berekstensi `.txt`, terapkan `rot13`         | Buka file baru dengan `O_RDONLY`, baca semua <br> Tutup file <br> Log isi file <br> Cek dangerous lewat reverse string <br> Baru `rot13` data yang dibaca |
+| **Fungsi `antink_write`** | Tidak ada                                                                                          | Ditambahkan fungsi write <br> Buka file dengan `O_WRONLY` dan `pwrite` <br> Log aktivitas tulis                |
+| **Fungsi `antink_release`**| Close `fi->fh`                                                                                     | Sama                                                                                                          |
+| **Struct `fuse_operations`**| Operasi yang di-handle: `getattr`, `readdir`, `open`, `read`, `release`                         | Ditambah operasi `write`                                                                                       |
+| **`main()`**              | Langsung panggil `fuse_main`                                                                       | Reset file log dengan header `=== AntiNK System Started ===` sebelum `fuse_main`                               |
+---
 
 ## Soal 4
 ### Oleh: Revalina Erica Permatasari (5027241007)
