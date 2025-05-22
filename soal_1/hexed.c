@@ -28,12 +28,13 @@
 #define ZIP_FILE   "anomali.zip"
 #define ZIP_URL    "https://drive.google.com/uc?id=1hi_GDdP51Kn2JJMw02WmCOxuc3qrXzh5"
 
+// Mengecek dan menyiapkan direktori dan file awal (download & ekstrak zip jika belum ada)
 static void setup_environment(void)
 {
     struct stat st = {0};
 
     if (stat(SOURCE_DIR, &st) == -1) {
-        printf("[INFO] Downloading and extracting %s…\n", ZIP_FILE);
+        printf("[INFO] Downloading and extracting %s...\n", ZIP_FILE);
         system("wget -q --show-progress -O " ZIP_FILE " \"" ZIP_URL "\"");
         system("unzip -q " ZIP_FILE " -d .");
         unlink(ZIP_FILE);
@@ -41,68 +42,90 @@ static void setup_environment(void)
     if (stat(IMAGE_DIR, &st) == -1) mkdir(IMAGE_DIR, 0755);
 }
 
-static int image_exists(const char *base)  /* cek pola <base>_image_*.png */
-{
-    char pattern[PATH_MAX];
-    snprintf(pattern, sizeof(pattern), "%s/%s_image_*.png", IMAGE_DIR, base);
-
-    glob_t g = {0};
-    int exist = (glob(pattern, 0, NULL, &g) == 0 && g.gl_pathc > 0);
-    globfree(&g);
-    return exist;
-}
-
+// Mengubah file .txt berisi data hex menjadi file gambar (.png) biner dan mencatat log-nya
 static int convert_file_to_image(const char *txt_name)
 {
-    /* buat path sumber */
+    //buat path sumber
     char src_path[PATH_MAX];
     snprintf(src_path, sizeof(src_path), "%s/%s", SOURCE_DIR, txt_name);
 
     FILE *src = fopen(src_path, "r");
-    if (!src) return -1;
+    if (!src) {
+        fprintf(stderr, "[ERR] Failed to open source file %s\n", src_path);
+        return -1;
+    }
 
-    /* baca seluruh isi file mentah */
     fseek(src, 0, SEEK_END);
     long fsize = ftell(src);
     fseek(src, 0, SEEK_SET);
 
+    if (fsize <= 0) {
+        fprintf(stderr, "[ERR] Empty file %s\n", txt_name);
+        fclose(src);
+        return -1;
+    }
+
     char *raw = malloc(fsize + 1);
-    if (!raw) { fclose(src); return -1; }
+    if (!raw) {
+        fclose(src);
+        fprintf(stderr, "[ERR] Memory allocation failed for raw data\n");
+        return -1;
+    }
 
-    fread(raw, 1, fsize, src);
-    raw[fsize] = '\0';
+    size_t bytes_read = fread(raw, 1, fsize, src);
     fclose(src);
+    
+    if (bytes_read != fsize) {
+        fprintf(stderr, "[ERR] Read incomplete data from %s\n", txt_name);
+        free(raw);
+        return -1;
+    }
+    raw[fsize] = '\0';
 
-    /* filter hanya karakter hex */
+    // Filter hanya karakter hex
     char *hex = malloc(fsize + 1);
-    if (!hex) { free(raw); return -1; }
+    if (!hex) {
+        free(raw);
+        fprintf(stderr, "[ERR] Memory allocation failed for hex data\n");
+        return -1;
+    }
 
     long hlen = 0;
     for (long i = 0; i < fsize; ++i) {
-        if (isxdigit((unsigned char)raw[i])) {
-            hex[hlen++] = raw[i];
+        if (isxdigit(raw[i])) {
+            hex[hlen++] = tolower(raw[i]);
         }
     }
     hex[hlen] = '\0';
     free(raw);
 
-    if (hlen % 2 != 0) {
-        fprintf(stderr, "[WARN] Odd number of hex digits in %s, skipping.\n", txt_name);
+    if (hlen == 0) {
+        fprintf(stderr, "[ERR] No hex digits found in %s\n", txt_name);
         free(hex);
         return -1;
     }
 
-    /* konversi ke biner */
+    if (hlen % 2 != 0) {
+        hex[hlen++] = '0';
+        hex[hlen] = '\0';
+    }
+
     long bin_len = hlen / 2;
     unsigned char *bin = malloc(bin_len);
-    if (!bin) { free(hex); return -1; }
+    if (!bin) {
+        free(hex);
+        fprintf(stderr, "[ERR] Memory allocation failed for binary data\n");
+        return -1;
+    }
 
-    for (long i = 0; i < bin_len; ++i)
-        sscanf(hex + 2 * i, "%2hhx", &bin[i]);
-
+    // konversi ke biner
+    for (long i = 0; i < bin_len; i++) {
+        char byte_str[3] = {hex[2*i], hex[2*i+1], '\0'};
+        bin[i] = (unsigned char)strtol(byte_str, NULL, 16);
+    }
     free(hex);
 
-    /* timestamp */
+    // timestamp
     time_t now = time(NULL);
     struct tm tm_now;
     localtime_r(&now, &tm_now);
@@ -110,41 +133,53 @@ static int convert_file_to_image(const char *txt_name)
     char ts[32];
     strftime(ts, sizeof(ts), "%Y-%m-%d_%H:%M:%S", &tm_now);
 
-    /* nama tanpa ekstensi */
-    char base[256];
+    // nama tanpa ekstensi
+    char base[NAME_MAX];
     strncpy(base, txt_name, sizeof(base));
     base[sizeof(base) - 1] = '\0';
     char *dot = strrchr(base, '.');
     if (dot) *dot = '\0';
 
-    /* path output */
+    // membuat path output
     char out_path[PATH_MAX];
     snprintf(out_path, sizeof(out_path),
              "%s/%s_image_%s.png", IMAGE_DIR, base, ts);
 
-    /* tulis gambar */
+    // menulis gambar
     FILE *img = fopen(out_path, "wb");
-    if (!img) { free(bin); return -1; }
-    fwrite(bin, 1, bin_len, img);
-    fclose(img);
+    if (!img) {
+        free(bin);
+        fprintf(stderr, "[ERR] Failed to create image file %s\n", out_path);
+        return -1;
+    }
 
-    /* log */
+    size_t bytes_written = fwrite(bin, 1, bin_len, img);
+    fclose(img);
+    free(bin);
+
+    if (bytes_written != bin_len) {
+        fprintf(stderr, "[ERR] Incomplete write to image file %s\n", out_path);
+        unlink(out_path);
+        return -1;
+    }
+
+    // Log the conversion
     FILE *logf = fopen(LOG_FILE, "a");
     if (logf) {
         fprintf(logf,
-            "[%04d-%02d-%02d][%02d:%02d:%02d]: Successfully converted hexadecimal text %s to %s.\n",
+            "[%04d-%02d-%02d][%02d:%02d:%02d]: Successfully converted hexadecimal %s to %s\n",
             tm_now.tm_year + 1900, tm_now.tm_mon + 1, tm_now.tm_mday,
             tm_now.tm_hour, tm_now.tm_min, tm_now.tm_sec,
             txt_name, strrchr(out_path, '/') + 1);
         fclose(logf);
     }
 
-    free(bin);
     return 0;
 }
 
 /* ---------- FUSE callbacks ---------- */
 
+// Mendapatkan atribut file/direktori (ukuran, jenis file, izin akses, dll.)
 static int x_getattr(const char *path, struct stat *st)
 {
     memset(st, 0, sizeof(struct stat));
@@ -166,6 +201,7 @@ static int x_getattr(const char *path, struct stat *st)
     return lstat(real, st);
 }
 
+// Membaca isi direktori dan menampilkannya ke FUSE (daftar file/direktori)
 static int x_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                      off_t off, struct fuse_file_info *fi)
 {
@@ -199,21 +235,16 @@ static int x_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     return 0;
 }
 
+// Membuka file; jika file .txt di-root dibuka, otomatis dikonversi ke gambar
 static int x_open(const char *path, struct fuse_file_info *fi)
 {
     /* konversi jika perlu (hanya berkas .txt di SOURCE_DIR) */
-    if (strncmp(path, "/image/", 7) && strcmp(path, "/conversion.log")) {
-        const char *fname = strrchr(path, '/');
-        fname = (fname ? fname + 1 : path);
-
-        char base[256];
-        strncpy(base, fname, sizeof(base));
-        base[sizeof(base)-1] = '\0';
-        char *dot = strrchr(base, '.');
-        if (dot) *dot = '\0';
-
-        if (!image_exists(base))
-            convert_file_to_image(fname);
+    if (strlen(path) > 4 && strcmp(path, "/conversion.log") && 
+        strncmp(path, "/image/", 7) && strcmp(path + strlen(path) - 4, ".txt") == 0) {
+        
+        const char *fname = path + 1; // Skip leading '/'
+        fprintf(stderr, "[INFO] Converting %s...\n", fname);
+        convert_file_to_image(fname);
     }
 
     char real[PATH_MAX];
@@ -230,6 +261,7 @@ static int x_open(const char *path, struct fuse_file_info *fi)
     return 0;
 }
 
+// Membaca isi file sesuai permintaan FUSE (offset dan ukuran tertentu)
 static int x_read(const char *path, char *buf, size_t size,
                   off_t offset, struct fuse_file_info *fi)
 {
@@ -252,13 +284,16 @@ static int x_read(const char *path, char *buf, size_t size,
     if (offset >= len) { fclose(f); return 0; }
     if (offset + size > len) size = len - offset;
 
-    fread(buf, 1, size, f);
+    fseek(f, offset, SEEK_SET);
+    size_t bytes_read = fread(buf, 1, size, f);
     fclose(f);
-    return size;
+    
+    return bytes_read;
 }
 
 /* ------------------ main ------------------ */
 
+// Struktur callback untuk operasi-operasi FUSE (getattr, readdir, open, read)
 static struct fuse_operations ops = {
     .getattr = x_getattr,
     .readdir = x_readdir,
