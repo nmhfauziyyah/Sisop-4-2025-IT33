@@ -483,6 +483,22 @@ enkripsi teks asli
 ##### Code Sebelum Revisi
 
 ##### Code Sesudah Revisi
+```
+#define FUSE_USE_VERSION 30
+#include <fuse3/fuse.h>
+...
+#define LOG_FILE "/var/log/it24.log"
+static const char *source_path = "/it24_host";
+...
+int main(int argc, char *argv[]) {
+    FILE *log = fopen(LOG_FILE, "w");
+    if (log) {
+        fprintf(log, "=== AntiNK System Started ===\n");
+        fclose(log);
+    }
+    return fuse_main(argc, argv, &antink_oper, NULL);
+}
+```
 
 ##### Output
 ![Screenshot 2025-05-21 144726](https://github.com/user-attachments/assets/36f4f131-8285-4fd8-bcca-0277765d1770)
