@@ -318,7 +318,8 @@ volumes:
   antink_mount:  
   antink_logs: 
 ```
-#### Service: `antink-server`
+
+##### Service: `antink-server`
 Container utama yang menjalankan sistem FUSE AntiNK.
 
 | Baris | Penjelasan |
@@ -329,12 +330,12 @@ Container utama yang menjalankan sistem FUSE AntiNK.
 | `cap_add:`<br>`- SYS_ADMIN` | Menambahkan kemampuan khusus agar container bisa melakukan operasi `mount` (diperlukan untuk FUSE). |
 | `devices:`<br>`- /dev/fuse` | Memberikan akses langsung ke device FUSE pada host. |
 | `volumes:`<br>`- ./it24_host:/it24_host:ro` | Mount direktori `it24_host` dari host sebagai sumber file asli. Bersifat **read-only**. |
-|  | `- ./antink_mount:/antink_mount` → Mount point FUSE, tempat hasil virtual dari sistem AntiNK ditampilkan. |
-|  | `- ./antink_logs:/var/log` → Tempat log sistem disimpan, termasuk `it24.log`. |
+|  | `- ./antink_mount:/antink_mount` >> Mount point FUSE, tempat hasil virtual dari sistem AntiNK ditampilkan. |
+|  | `- ./antink_logs:/var/log` >> Tempat log sistem disimpan, termasuk `it24.log`. |
 | `security_opt:`<br>`- apparmor:unconfined` | Menonaktifkan profil keamanan AppArmor agar tidak menghalangi operasi FUSE. |
 ---
 
-#### Service: `antink-logger`
+##### Service: `antink-logger`
 Container ringan untuk memantau log sistem secara real-time.
 
 | Baris | Penjelasan |
@@ -346,7 +347,7 @@ Container ringan untuk memantau log sistem secara real-time.
 | `command:`<br>`sh -c "...tail -f /var/log/it24.log"` | Menunggu hingga log `it24.log` muncul, lalu menampilkan isi log secara real-time menggunakan `tail -f`. |
 ---
 
-#### Penjelasan Folder (Mount Points)
+##### Penjelasan Folder (Mount Points)
 
 | Folder (Host) | Fungsi |
 |---------------|--------|
@@ -362,7 +363,7 @@ Container ringan untuk memantau log sistem secara real-time.
 | **`volumes: ./antink_logs:/var/log:ro` (logger)** | Read-only | Read-write (tanpa `:ro`) | Logger seharusnya hanya membaca log, tidak mengubah — meskipun kecil risikonya, ini menyimpang dari prinsip pembatasan akses. |
 ---
 
-### Kaitan dengan Soal 3
+##### Kaitan dengan Soal 3
 
 | Poin Soal | Keterangan |
 |-----------|------------|
@@ -371,6 +372,74 @@ Container ringan untuk memantau log sistem secara real-time.
 | **c.** ROT13 untuk `.txt` normal | ROT13 hanya berlaku untuk file `.txt` yang bukan berbahaya |
 | **d.** Semua aktivitas dicatat di log | File `/var/log/it24.log` mencatat semua aksi: read, write, deteksi |
 | **e.** Perubahan hanya di container (mount layer) | File di `it24_host` tidak dimodifikasi; hanya layer FUSE yang dimanipulasi |
+---
+
+#### ``Dockerfile``
+##### Code Sebelum Revisi
+```
+FROM ubuntu:20.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    gcc make libfuse3-dev pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY antink.c .
+
+RUN gcc -Wall -D_FILE_OFFSET_BITS=64 antink.c -o antink -lfuse3 -pthread
+
+CMD ["sh", "-c", "mkdir -p /it24_host /antink_mount /var/log && touch /var/log/it24.log && chmod 666 /var/log/it24.log && /app/antink /antink_mount"]
+```
+
+##### Code Sesudah Revisi
+```
+FROM ubuntu:20.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    gcc \
+    make \
+    pkg-config \
+    libfuse3-dev \
+    fuse3 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY antink.c .
+
+RUN gcc -Wall -D_FILE_OFFSET_BITS=64 antink.c -o antink -lfuse3 -pthread
+
+CMD ["sh", "-c", "mkdir -p /it24_host /antink_mount /var/log && touch /var/log/it24.log && chmod 666 /var/log/it24.log && ./antink /antink_mount -f"]
+```
+
+| Bagian | Penjelasan |
+|--------|------------|
+| `FROM ubuntu:20.04` | Menggunakan base image Ubuntu 20.04 sebagai sistem dasar. |
+| `ENV DEBIAN_FRONTEND=noninteractive` | Mencegah prompt interaktif saat `apt install`. |
+| `RUN apt-get update && apt-get install -y ...` | Menginstal dependensi penting seperti: |
+|  • `gcc`, `make` | Untuk kompilasi `antink.c` |
+|  • `libfuse3-dev`, `pkg-config` | Header dan konfigurasi untuk library FUSE3 |
+|  • `fuse3` | **Binary/runtime** FUSE, agar container bisa menjalankan FUSE |
+| `WORKDIR /app` | Direktori kerja dalam container tempat file akan disalin dan dieksekusi. |
+| `COPY antink.c .` | Menyalin source code FUSE dari host ke dalam container. |
+| `RUN gcc ... -lfuse3 -pthread` | Mengompilasi `antink.c` menjadi binary `antink`. |
+| `CMD ["sh", "-c", "..."]` | Perintah yang dijalankan saat container start: |
+|  • Membuat direktori yang dibutuhkan (`/it24_host`, `/antink_mount`, `/var/log`) |
+|  • Membuat file log `/var/log/it24.log` dan memberi izin akses |
+|  • Menjalankan `./antink /antink_mount -f` >> **mode FUSE foreground**
+---
+
+| Bagian yang Diubah | Sebelum Revisi | Sesudah Revisi | Penjelasan |
+|---------------------|----------------|----------------|------------|
+| **Instalasi `fuse3`** | Tidak ada | Ada | Sebelumnya hanya menginstal `libfuse3-dev` (header untuk compile), tapi tidak ada **binary runtime** FUSE. Tanpa `fuse3`, container bisa gagal jalan karena `fusermount3` tidak ditemukan. |
+| **Perintah Jalankan (`CMD`)** | `/app/antink /antink_mount` | `./antink /antink_mount -f` | Menjalankan dalam **mode foreground (`-f`)**, penting untuk debugging/logging dan agar tetap aktif di container FUSE. |
+| **Path binary** | `/app/antink` | `./antink` | Konsisten dengan `WORKDIR /app`, jadi cukup `./antink`. |
+| **Instalasi apt** | Semua dalam 1 baris | Dipisah lebih rapi | Hanya peningkatan keterbacaan, tidak berdampak fungsional. |
 ---
 
 #### a.Pujo harus membuat sistem AntiNK menggunakan Docker yang menjalankan FUSE dalam container terisolasi. Sistem ini menggunakan docker-compose untuk mengelola container antink-server (FUSE Func.) dan antink-logger (Monitoring Real-Time Log). Asisten juga memberitahu bahwa docker-compose juga memiliki beberapa komponen lain yaitu
