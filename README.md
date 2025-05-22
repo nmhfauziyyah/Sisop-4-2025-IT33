@@ -261,7 +261,9 @@ it24_host (Bind Mount -> Store Original File)
 antink_mount (Mount Point)
 
 antink-logs (Bind Mount -> Store Log)
-##### Code
+##### Code Sebelum Revisi
+
+##### Code Sesudah Revisi
 
 ##### Output
 ![Screenshot 2025-05-21 144906](https://github.com/user-attachments/assets/6699b277-f5a6-4faa-bf56-6fda5e123c7c)
@@ -271,7 +273,9 @@ Ex: "docker exec [container-name] ls /antink_mount"
 
 Output: 
 test.txt  vsc.sifan  txt.nucmik
-##### Code
+##### Code Sebelum Revisi
+
+##### Code Sesudah Revisi
 
 ##### Output
 ![Screenshot 2025-05-21 144932](https://github.com/user-attachments/assets/252287fd-df29-4fba-b0ff-8ee2ac646329)
@@ -281,19 +285,25 @@ Ex: "docker exec [container-name] cat /antink_mount/test.txt"
 
 Output: 
 enkripsi teks asli
-##### Code
+##### Code Sebelum Revisi
+
+##### Code Sesudah Revisi
 
 ##### Output
 ![Screenshot 2025-05-21 144949](https://github.com/user-attachments/assets/9b29b425-c373-4d0e-b96d-c84f7540e9d5)
 
 #### d. Semua aktivitas dicatat dengan ke dalam log file /var/log/it24.log yang dimonitor secara real-time oleh container logger.
-##### Code
+##### Code Sebelum Revisi
+
+##### Code Sesudah Revisi
 
 ##### Output
 ![Screenshot 2025-05-21 144726](https://github.com/user-attachments/assets/36f4f131-8285-4fd8-bcca-0277765d1770)
 
 #### e. Semua perubahan file hanya terjadi di dalam container server jadi tidak akan berpengaruh di dalam direktori host. 
-##### Code
+##### Code Sebelum Revisi
+
+##### Code Sesudah Revisi
 
 ##### Output
 <img width="627" alt="image" src="https://github.com/user-attachments/assets/b93def2f-b43e-466d-940d-7064b032f4cd" />
