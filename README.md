@@ -258,6 +258,7 @@ Otomatis folder mnt akan kosong, karena FUSE sudah tidak berjalan lagi
 
 #### `docker-compose.yml` (Eksternal)
 ##### Code Sebelum Revisi
+```
 version: '3.8'
 services:
   antink-server:
@@ -281,6 +282,7 @@ services:
     volumes:
       - ./antink_logs:/var/log
     command: sh -c "while [ ! -f /var/log/it24.log ]; do sleep 1; done; tail -f /var/log/it24.log"
+```
 
 ##### Code Sesudah Revisi
 ```
@@ -330,7 +332,6 @@ Container utama yang menjalankan sistem FUSE AntiNK.
 |  | `- ./antink_mount:/antink_mount` → Mount point FUSE, tempat hasil virtual dari sistem AntiNK ditampilkan. |
 |  | `- ./antink_logs:/var/log` → Tempat log sistem disimpan, termasuk `it24.log`. |
 | `security_opt:`<br>`- apparmor:unconfined` | Menonaktifkan profil keamanan AppArmor agar tidak menghalangi operasi FUSE. |
-
 ---
 
 #### Service: `antink-logger`
@@ -343,7 +344,6 @@ Container ringan untuk memantau log sistem secara real-time.
 | `depends_on:`<br>`- antink-server` | Menentukan bahwa container ini hanya berjalan setelah `antink-server` siap. |
 | `volumes:`<br>`- ./antink_logs:/var/log:ro` | Share log folder yang sama, tetapi hanya dalam mode **read-only**. |
 | `command:`<br>`sh -c "...tail -f /var/log/it24.log"` | Menunggu hingga log `it24.log` muncul, lalu menampilkan isi log secara real-time menggunakan `tail -f`. |
-
 ---
 
 #### Penjelasan Folder (Mount Points)
@@ -353,6 +353,13 @@ Container ringan untuk memantau log sistem secara real-time.
 | `./it24_host/` | Tempat file asli disimpan (input), akan dibaca oleh sistem AntiNK (read-only). |
 | `./antink_mount/` | Folder hasil FUSE mount, di sini file yang sudah dimanipulasi nama/isinya tampil. |
 | `./antink_logs/` | Folder log, menyimpan log aktivitas dari sistem AntiNK (`it24.log`). |
+---
+
+| Bagian | Versi Awal | Versi Revisi | Penjelasan |
+|--------|-------------|----------------|----------------------|
+| **`security_opt`** | `apparmor:unconfined` | Dihapus | Tanpa ini, sistem berbasis FUSE bisa gagal mount jika AppArmor aktif di host (umum di Ubuntu). |
+| **`volumes: ./it24_host:/it24_host:ro`** | Read-only (`ro`) | Tidak ada `ro`, jadi default read-write | Memberikan akses tulis ke file asli di `it24_host`, yang **melanggar poin (e)** dalam soal: perubahan tidak boleh memengaruhi file asli. |
+| **`volumes: ./antink_logs:/var/log:ro` (logger)** | Read-only | Read-write (tanpa `:ro`) | Logger seharusnya hanya membaca log, tidak mengubah — meskipun kecil risikonya, ini menyimpang dari prinsip pembatasan akses. |
 ---
 
 ### Kaitan dengan Soal 3
