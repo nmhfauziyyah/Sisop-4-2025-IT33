@@ -428,12 +428,9 @@ CMD ["sh", "-c", "mkdir -p /it24_host /antink_mount /var/log && touch /var/log/i
 | `WORKDIR /app` | Direktori kerja dalam container tempat file akan disalin dan dieksekusi. |
 | `COPY antink.c .` | Menyalin source code FUSE dari host ke dalam container. |
 | `RUN gcc ... -lfuse3 -pthread` | Mengompilasi `antink.c` menjadi binary `antink`. |
-| `CMD ["sh", "-c", "mkdir -p /it24_host /antink_mount
-/var/log && touch /var/log/it24.log && chmod 666 /var/log/it24.log
-&& ./antink /antink_mount -f"]` | Perintah yang dijalankan saat container start: |
-|  |  • Membuat direktori yang dibutuhkan (`/it24_host`, `/antink_mount`, `/var/log`) |
-|  | • Membuat file log `/var/log/it24.log` dan memberi izin akses |
-|  | • Menjalankan `./antink /antink_mount -f` >> **mode FUSE foreground**
+| `CMD ["sh", "-c", "mkdir -p /it24_host /antink_mount /var/log` | Membuat direktori yang dibutuhkan (`/it24_host`, `/antink_mount`, `/var/log`) |
+| `CMD [ .. && touch /var/log/it24.log...]`| Membuat file log `/var/log/it24.log` dan memberi izin akses |
+| `CMD [...&& chmod 666 /var/log/it24.log && ./antink /antink_mount -f"]`  | Menjalankan `./antink /antink_mount -f` >> **mode FUSE foreground** |
 ---
 
 | Bagian yang Diubah | Sebelum Revisi | Sesudah Revisi | Penjelasan |
