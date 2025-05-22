@@ -817,7 +817,7 @@ static char *to_real_path(const char *path) {
 ```
 
 ##### Output
-<img width="627" alt="image" src="https://github.com/user-attachments/assets/b93def2f-b43e-466d-940d-7064b032f4cd" />
+<img width="545" alt="image" src="https://github.com/user-attachments/assets/4198d686-c8a7-487f-a98a-1140937483fa" />
 
 ## Soal 4
 ### Oleh: Revalina Erica Permatasari (5027241007)
