@@ -499,8 +499,6 @@ char *reverse_string(const char *str) {
     return rev;
 }
 
-
-
 ```
 
 ##### Output
